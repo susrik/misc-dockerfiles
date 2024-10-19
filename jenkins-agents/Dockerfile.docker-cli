@@ -1,0 +1,42 @@
+FROM debian:bookworm-slim
+
+# Install necessary system dependencies for Jenkins agent
+RUN apt-get update && \
+    apt-get install -y \
+    git \
+    curl \
+    openjdk-17-jdk \
+    gnupg2 \
+    postgresql-client \
+    mariadb-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN install -m 0755 -d /etc/apt/keyrings
+RUN curl \
+    -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    -o /etc/apt/keyrings/docker.asc
+RUN chmod a+r /etc/apt/keyrings/docker.asc
+
+RUN echo "deb [arch=$(dpkg --print-architecture) \
+ signed-by=/etc/apt/keyrings/docker.asc] \
+ https://download.docker.com/linux/debian \
+ $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+ | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+RUN apt-get update && apt-get install -y docker-ce-cli
+
+# Set the environment variable for Java Home
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Set up the entrypoint script
+COPY jenkins-agent.sh /usr/local/bin/jenkins-agent.sh
+RUN chmod +x /usr/local/bin/jenkins-agent.sh
+
+# Expose SSH port (if using SSH connection to the agent)
+EXPOSE 22
+
+# Start the Jenkins agent
+ENTRYPOINT ["/usr/local/bin/jenkins-agent.sh"]
+
